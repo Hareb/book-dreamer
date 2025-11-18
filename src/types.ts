@@ -50,13 +50,20 @@ export interface ReaderState {
   isGenerating: boolean;
 }
 
+export interface CacheStats {
+  fileCount: number;
+  totalSize: number;
+  path: string;
+}
+
 declare global {
   interface Window {
-    electron: {
+    electron?: {
       openFileDialog: () => Promise<{ path: string; data: number[] } | null>;
       saveToCache: (key: string, data: any) => Promise<boolean>;
       getFromCache: (key: string) => Promise<any>;
       clearCache: () => Promise<boolean>;
+      getCacheStats: () => Promise<CacheStats>;
     };
   }
 }

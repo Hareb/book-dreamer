@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld('electron', {
   saveToCache: (key, data) => ipcRenderer.invoke('save-to-cache', { key, data }),
   getFromCache: (key) => ipcRenderer.invoke('get-from-cache', key),
   clearCache: () => ipcRenderer.invoke('clear-cache'),
+  getCacheStats: () => ipcRenderer.invoke('get-cache-stats'),
 });
