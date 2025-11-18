@@ -55,13 +55,17 @@ export class EPubService {
         return '';
       }
 
-      await section.load(this.book.load.bind(this.book));
-      const contents = section.contents;
+      // Load the section - epub.js will handle the loading internally
+      const doc = await section.load(this.book.load.bind(this.book));
 
-      if (!contents) return '';
+      if (!doc) return '';
 
-      // Extract text content
-      const textContent = this.extractTextFromElement(contents);
+      // Extract text content from the loaded document
+      const textContent = this.extractTextFromDocument(doc);
+
+      // Unload to free memory
+      section.unload();
+
       return textContent;
     } catch (error) {
       console.error('Error loading chapter:', error);
@@ -69,15 +73,30 @@ export class EPubService {
     }
   }
 
-  private extractTextFromElement(element: any): string {
-    if (!element) return '';
+  private extractTextFromDocument(doc: Document | any): string {
+    if (!doc) return '';
 
-    // Get text content, removing script and style elements
-    const clone = element.cloneNode(true);
-    const scripts = clone.querySelectorAll('script, style');
-    scripts.forEach((script: any) => script.remove());
+    try {
+      // Get the body element
+      const body = doc.body || doc.documentElement;
+      if (!body) return '';
 
-    return clone.textContent || clone.innerText || '';
+      // Clone to avoid modifying original
+      const clone = body.cloneNode(true) as HTMLElement;
+
+      // Remove script and style elements
+      const scripts = clone.querySelectorAll('script, style');
+      scripts.forEach((script) => script.remove());
+
+      // Get text content
+      const text = clone.textContent || clone.innerText || '';
+
+      // Clean up excessive whitespace
+      return text.replace(/\s+/g, ' ').trim();
+    } catch (error) {
+      console.error('Error extracting text:', error);
+      return '';
+    }
   }
 
   getBook(): EpubBook | null {

@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { X, Save, Trash2, ExternalLink } from 'lucide-react';
-import { Settings as SettingsType, ImageStyle } from '../types';
+import { useState, useEffect } from 'react';
+import { X, Save, Trash2, ExternalLink, HardDrive } from 'lucide-react';
+import { Settings as SettingsType, ImageStyle, CacheStats } from '../types';
 import { CacheService } from '../services/cacheService';
 
 interface SettingsProps {
@@ -12,6 +12,27 @@ interface SettingsProps {
 export default function Settings({ settings, onSave, onClose }: SettingsProps) {
   const [localSettings, setLocalSettings] = useState<SettingsType>(settings);
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
+
+  // Load cache stats on mount
+  useEffect(() => {
+    const loadCacheStats = async () => {
+      if (window.electron?.getCacheStats) {
+        const stats = await window.electron.getCacheStats();
+        setCacheStats(stats);
+      } else {
+        // Fallback for web mode
+        const size = await CacheService.getCacheSize();
+        setCacheStats({
+          fileCount: size,
+          totalSize: 0,
+          path: 'localStorage (web mode)',
+        });
+      }
+    };
+
+    loadCacheStats();
+  }, []);
 
   const handleSave = () => {
     onSave(localSettings);
@@ -22,7 +43,22 @@ export default function Settings({ settings, onSave, onClose }: SettingsProps) {
     if (confirm('Are you sure you want to clear all cached images?')) {
       await CacheService.clearAllCache();
       alert('Cache cleared successfully');
+
+      // Refresh cache stats
+      setCacheStats({
+        fileCount: 0,
+        totalSize: 0,
+        path: cacheStats?.path || '',
+      });
     }
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
   return (
@@ -218,11 +254,33 @@ export default function Settings({ settings, onSave, onClose }: SettingsProps) {
 
           {/* Cache Management */}
           <section className="bg-background-light p-6 rounded-lg border border-gray-800">
-            <h3 className="text-xl font-semibold mb-4">Cache</h3>
+            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <HardDrive className="w-5 h-5" />
+              Cache
+            </h3>
             <p className="text-sm text-text-secondary mb-4">
               Generated images are cached locally to save API costs. Clear the cache if you want
               to regenerate images with different styles.
             </p>
+
+            {cacheStats && (
+              <div className="bg-background p-4 rounded-lg mb-4 border border-gray-700">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-text-secondary">Cached Images:</span>
+                    <span className="ml-2 font-semibold">{cacheStats.fileCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-secondary">Total Size:</span>
+                    <span className="ml-2 font-semibold">{formatBytes(cacheStats.totalSize)}</span>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-text-secondary">
+                  Location: {cacheStats.path}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={handleClearCache}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2"
